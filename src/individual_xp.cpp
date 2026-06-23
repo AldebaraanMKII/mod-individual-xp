@@ -17,6 +17,7 @@ struct IndividualXpModule
 {
     bool Enabled, AnnounceModule, AnnounceRatesOnLogin;
     float MaxRate, DefaultRate;
+    uint32 GMLevel = 3;
 };
 
 IndividualXpModule individualXp;
@@ -32,7 +33,13 @@ enum IndividualXPAcoreString
     ACORE_STRING_COMMAND_SET,
     ACORE_STRING_COMMAND_DISABLED,
     ACORE_STRING_COMMAND_ENABLED,
-    ACORE_STRING_COMMAND_DEFAULT
+    ACORE_STRING_COMMAND_DEFAULT,
+    ACORE_STRING_INSUFFICIENT_SECURITY,
+    ACORE_STRING_COMMAND_SET_OTHER,
+    ACORE_STRING_COMMAND_VIEW_OTHER,
+    ACORE_STRING_COMMAND_DISABLE_OTHER,
+    ACORE_STRING_COMMAND_ENABLE_OTHER,
+    ACORE_STRING_COMMAND_DEFAULT_OTHER
 };
 
 class IndividualXPConf : public WorldScript
@@ -47,6 +54,7 @@ public:
         individualXp.AnnounceRatesOnLogin = sConfigMgr->GetOption<bool>("IndividualXp.AnnounceRatesOnLogin", true);
         individualXp.MaxRate = sConfigMgr->GetOption<float>("IndividualXp.MaxXPRate", 10.0f);
         individualXp.DefaultRate = sConfigMgr->GetOption<float>("IndividualXp.DefaultXPRate", 1.0f);
+        individualXp.GMLevel = sConfigMgr->GetOption<uint32>("IndividualXp.GMLevel", 3);
     }
 };
 
@@ -154,10 +162,21 @@ public:
             return false;
         }
 
+        if (handler->GetSession()->GetSecurity() < individualXp.GMLevel)
+        {
+            handler->PSendSysMessage(ACORE_STRING_INSUFFICIENT_SECURITY);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
         Player* player = handler->GetSession()->GetPlayer();
 
         if (!player)
             return false;
+
+        Player* target = player->GetSelectedPlayer();
+        if (target)
+            player = target;
 
         if (player->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN))
         {
@@ -165,10 +184,12 @@ public:
             handler->SetSentErrorMessage(true);
             return false;
         }
+
+        if (target)
+            ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_VIEW_OTHER, player->GetName(), player->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate);
         else
-        {
             ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_VIEW, player->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate);
-        }
+
         return true;
     }
 
@@ -184,10 +205,21 @@ public:
         if (!rate)
             return false;
 
+        if (handler->GetSession()->GetSecurity() < individualXp.GMLevel)
+        {
+            handler->PSendSysMessage(ACORE_STRING_INSUFFICIENT_SECURITY);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
         Player* player = handler->GetSession()->GetPlayer();
 
         if (!player)
             return false;
+
+        Player* target = player->GetSelectedPlayer();
+        if (target)
+            player = target;
 
         if (player->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN))
         {
@@ -195,26 +227,32 @@ public:
             handler->SetSentErrorMessage(true);
             return false;
         }
-        else
+
+        if (rate > individualXp.MaxRate)
         {
-            if (rate > individualXp.MaxRate)
-            {
-                handler->PSendSysMessage(ACORE_STRING_MAX_RATE, individualXp.MaxRate);
-                handler->SetSentErrorMessage(true);
-                return false;
-            }
-
-            if (rate < 0.1f)
-            {
-                handler->PSendSysMessage(ACORE_STRING_MIN_RATE);
-                handler->SetSentErrorMessage(true);
-                return false;
-            }
-
-            player->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate = rate;
-            ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_SET, rate);
-            return true;
+            handler->PSendSysMessage(ACORE_STRING_MAX_RATE, individualXp.MaxRate);
+            handler->SetSentErrorMessage(true);
+            return false;
         }
+
+        if (rate < 0.1f)
+        {
+            handler->PSendSysMessage(ACORE_STRING_MIN_RATE);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        player->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate = rate;
+
+        if (target)
+        {
+            ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_SET_OTHER, target->GetName(), rate);
+            ChatHandler(target->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_SET, rate);
+        }
+        else
+            ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_SET, rate);
+
+        return true;
     }
 
     static bool HandleDisableCommand(ChatHandler* handler)
@@ -226,16 +264,29 @@ public:
             return false;
         }
 
+        if (handler->GetSession()->GetSecurity() < individualXp.GMLevel)
+        {
+            handler->PSendSysMessage(ACORE_STRING_INSUFFICIENT_SECURITY);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
         Player* player = handler->GetSession()->GetPlayer();
 
         if (!player)
             return false;
 
+        Player* target = player->GetSelectedPlayer();
+        if (target)
+            player = target;
+
         if (!player->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN))
         {
-            // Turn Disabled On But Don't Change Value...
             player->SetFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN);
-            ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_DISABLED);
+            if (target)
+                ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_DISABLE_OTHER, player->GetName());
+            else
+                ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_DISABLED);
             return true;
         }
         else
@@ -254,15 +305,29 @@ public:
             return true;
         }
 
+        if (handler->GetSession()->GetSecurity() < individualXp.GMLevel)
+        {
+            handler->PSendSysMessage(ACORE_STRING_INSUFFICIENT_SECURITY);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
         Player* player = handler->GetSession()->GetPlayer();
 
         if (!player)
             return false;
 
+        Player* target = player->GetSelectedPlayer();
+        if (target)
+            player = target;
+
         if (player->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN))
         {
             player->RemoveFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN);
-            ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_ENABLED);
+            if (target)
+                ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_ENABLE_OTHER, player->GetName());
+            else
+                ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_ENABLED);
         }
         else
         {
@@ -281,10 +346,21 @@ public:
             return false;
         }
 
+        if (handler->GetSession()->GetSecurity() < individualXp.GMLevel)
+        {
+            handler->PSendSysMessage(ACORE_STRING_INSUFFICIENT_SECURITY);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
         Player* player = handler->GetSession()->GetPlayer();
 
         if (!player)
             return false;
+
+        Player* target = player->GetSelectedPlayer();
+        if (target)
+            player = target;
 
         if (player->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN))
         {
@@ -292,12 +368,15 @@ public:
             handler->SetSentErrorMessage(true);
             return false;
         }
+
+        player->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate = individualXp.DefaultRate;
+
+        if (target)
+            ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_DEFAULT_OTHER, player->GetName(), individualXp.DefaultRate);
         else
-        {
-            player->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate = individualXp.DefaultRate;
             ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_DEFAULT, individualXp.DefaultRate);
-            return true;
-        }
+
+        return true;
     }
 };
 
