@@ -247,7 +247,8 @@ public:
         if (target)
         {
             ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_SET_OTHER, target->GetName(), rate);
-            ChatHandler(target->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_SET, rate);
+            if (WorldSession* targetSession = target->GetSession())
+               ChatHandler(targetSession).PSendSysMessage(ACORE_STRING_COMMAND_SET, rate);
         }
         else
             ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_SET, rate);
