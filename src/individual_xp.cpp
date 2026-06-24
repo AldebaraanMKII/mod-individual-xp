@@ -39,7 +39,8 @@ enum IndividualXPAcoreString
     ACORE_STRING_COMMAND_VIEW_OTHER,
     ACORE_STRING_COMMAND_DISABLE_OTHER,
     ACORE_STRING_COMMAND_ENABLE_OTHER,
-    ACORE_STRING_COMMAND_DEFAULT_OTHER
+    ACORE_STRING_COMMAND_DEFAULT_OTHER,
+    ACORE_STRING_PLAYER_NOT_FOUND
 };
 
 class IndividualXPConf : public WorldScript
@@ -153,7 +154,7 @@ public:
         return IndividualXPBaseTable;
     }
 
-    static bool HandleViewCommand(ChatHandler* handler)
+    static bool HandleViewCommand(ChatHandler* handler, Optional<PlayerIdentifier> playerName)
     {
         if (!individualXp.Enabled)
         {
@@ -174,9 +175,28 @@ public:
         if (!player)
             return false;
 
-        Player* target = player->GetSelectedPlayer();
-        if (target)
-            player = target;
+        bool isOther = false;
+
+        if (playerName)
+        {
+            if (!playerName->IsConnected())
+            {
+                handler->PSendSysMessage(ACORE_STRING_PLAYER_NOT_FOUND);
+                handler->SetSentErrorMessage(true);
+                return false;
+            }
+            player = playerName->GetConnectedPlayer();
+            isOther = true;
+        }
+        else
+        {
+            Player* target = player->GetSelectedPlayer();
+            if (target)
+            {
+                player = target;
+                isOther = true;
+            }
+        }
 
         if (player->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN))
         {
@@ -185,7 +205,7 @@ public:
             return false;
         }
 
-        if (target)
+        if (isOther)
             ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_VIEW_OTHER, player->GetName(), player->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate);
         else
             ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_VIEW, player->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate);
@@ -193,7 +213,7 @@ public:
         return true;
     }
 
-    static bool HandleSetCommand(ChatHandler* handler, float rate)
+    static bool HandleSetCommand(ChatHandler* handler, float rate, Optional<PlayerIdentifier> playerName)
     {
         if (!individualXp.Enabled)
         {
@@ -217,9 +237,28 @@ public:
         if (!player)
             return false;
 
-        Player* target = player->GetSelectedPlayer();
-        if (target)
-            player = target;
+        bool isOther = false;
+
+        if (playerName)
+        {
+            if (!playerName->IsConnected())
+            {
+                handler->PSendSysMessage(ACORE_STRING_PLAYER_NOT_FOUND);
+                handler->SetSentErrorMessage(true);
+                return false;
+            }
+            player = playerName->GetConnectedPlayer();
+            isOther = true;
+        }
+        else
+        {
+            Player* target = player->GetSelectedPlayer();
+            if (target)
+            {
+                player = target;
+                isOther = true;
+            }
+        }
 
         if (player->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN))
         {
@@ -244,11 +283,11 @@ public:
 
         player->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate = rate;
 
-        if (target)
+        if (isOther)
         {
-            ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_SET_OTHER, target->GetName(), rate);
-            if (WorldSession* targetSession = target->GetSession())
-               ChatHandler(targetSession).PSendSysMessage(ACORE_STRING_COMMAND_SET, rate);
+            ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_SET_OTHER, player->GetName(), rate);
+            if (WorldSession* targetSession = player->GetSession())
+                ChatHandler(targetSession).PSendSysMessage(ACORE_STRING_COMMAND_SET, rate);
         }
         else
             ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_SET, rate);
@@ -256,7 +295,7 @@ public:
         return true;
     }
 
-    static bool HandleDisableCommand(ChatHandler* handler)
+    static bool HandleDisableCommand(ChatHandler* handler, Optional<PlayerIdentifier> playerName)
     {
         if (!individualXp.Enabled)
         {
@@ -277,14 +316,33 @@ public:
         if (!player)
             return false;
 
-        Player* target = player->GetSelectedPlayer();
-        if (target)
-            player = target;
+        bool isOther = false;
+
+        if (playerName)
+        {
+            if (!playerName->IsConnected())
+            {
+                handler->PSendSysMessage(ACORE_STRING_PLAYER_NOT_FOUND);
+                handler->SetSentErrorMessage(true);
+                return false;
+            }
+            player = playerName->GetConnectedPlayer();
+            isOther = true;
+        }
+        else
+        {
+            Player* target = player->GetSelectedPlayer();
+            if (target)
+            {
+                player = target;
+                isOther = true;
+            }
+        }
 
         if (!player->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN))
         {
             player->SetFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN);
-            if (target)
+            if (isOther)
                 ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_DISABLE_OTHER, player->GetName());
             else
                 ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_DISABLED);
@@ -297,7 +355,7 @@ public:
         }
     }
 
-    static bool HandleEnableCommand(ChatHandler* handler)
+    static bool HandleEnableCommand(ChatHandler* handler, Optional<PlayerIdentifier> playerName)
     {
         if (!individualXp.Enabled)
         {
@@ -318,14 +376,33 @@ public:
         if (!player)
             return false;
 
-        Player* target = player->GetSelectedPlayer();
-        if (target)
-            player = target;
+        bool isOther = false;
+
+        if (playerName)
+        {
+            if (!playerName->IsConnected())
+            {
+                handler->PSendSysMessage(ACORE_STRING_PLAYER_NOT_FOUND);
+                handler->SetSentErrorMessage(true);
+                return false;
+            }
+            player = playerName->GetConnectedPlayer();
+            isOther = true;
+        }
+        else
+        {
+            Player* target = player->GetSelectedPlayer();
+            if (target)
+            {
+                player = target;
+                isOther = true;
+            }
+        }
 
         if (player->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN))
         {
             player->RemoveFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN);
-            if (target)
+            if (isOther)
                 ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_ENABLE_OTHER, player->GetName());
             else
                 ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_ENABLED);
@@ -338,7 +415,7 @@ public:
         return true;
     }
 
-    static bool HandleDefaultCommand(ChatHandler* handler)
+    static bool HandleDefaultCommand(ChatHandler* handler, Optional<PlayerIdentifier> playerName)
     {
         if (!individualXp.Enabled)
         {
@@ -359,9 +436,28 @@ public:
         if (!player)
             return false;
 
-        Player* target = player->GetSelectedPlayer();
-        if (target)
-            player = target;
+        bool isOther = false;
+
+        if (playerName)
+        {
+            if (!playerName->IsConnected())
+            {
+                handler->PSendSysMessage(ACORE_STRING_PLAYER_NOT_FOUND);
+                handler->SetSentErrorMessage(true);
+                return false;
+            }
+            player = playerName->GetConnectedPlayer();
+            isOther = true;
+        }
+        else
+        {
+            Player* target = player->GetSelectedPlayer();
+            if (target)
+            {
+                player = target;
+                isOther = true;
+            }
+        }
 
         if (player->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN))
         {
@@ -372,7 +468,7 @@ public:
 
         player->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate = individualXp.DefaultRate;
 
-        if (target)
+        if (isOther)
             ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_DEFAULT_OTHER, player->GetName(), individualXp.DefaultRate);
         else
             ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_DEFAULT, individualXp.DefaultRate);
